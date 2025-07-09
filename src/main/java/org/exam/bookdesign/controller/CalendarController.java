@@ -24,7 +24,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 
-@RestController
+//@RestController
 @RequiredArgsConstructor
 @Slf4j
 @RequestMapping(value="/auth")
