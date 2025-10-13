@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.exam.bookdesign.config.ApplicationAuditorAware;
+import org.exam.bookdesign.config.KeycloakJwtAuthenticationConverter;
 import org.exam.bookdesign.model.*;
 import org.exam.bookdesign.repository.BookUserRepository;
 import org.exam.bookdesign.repository.BookingRecordRepository;
@@ -13,13 +15,17 @@ import org.exam.bookdesign.service.BookUserService;
 import org.exam.bookdesign.service.BookingRecordService;
 import org.exam.bookdesign.service.BookingService;
 import org.exam.bookdesign.service.SendEmailService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.servlet.error.DefaultErrorAttributes;
+import org.springframework.data.domain.AuditorAware;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -40,8 +46,22 @@ public class BookingRecordController {
     private final BookingService bookingService;
     private final BookUserService bookUserService;
     private final SendEmailService sendEmailService;
+    private final AuditorAware<String> auditorAware;
 
 
+    private String getUsername() {
+
+        return auditorAware.toString();
+
+//        Optional<String> usern = auditorAware.getCurrentAuditor();
+//
+//        //return usern.orElseThrow();
+//
+//        if (usern.isEmpty()) {
+//            return "no username";
+//        }
+//        return usern.get();
+    }
 
     record BookingRecordRequest(
             @JsonProperty("id") int id,
@@ -262,7 +282,7 @@ public class BookingRecordController {
 //    ) {}
 
     @PostMapping(value = "/delete",produces = {"application/json"})
-    public  DeleteBookingResponse deleteBookingRecord(@RequestBody DeleteBookingRequest deleteReq) {
+    public  DeleteBookingResponse deleteBookingRecord(@RequestBody DeleteBookingRequest deleteReq, @AuthenticationPrincipal Jwt jwt) {
 
         if (deleteReq == null) {
             log.info("bookingRecord is null");
@@ -270,17 +290,15 @@ public class BookingRecordController {
         }
         log.info("bookingRecordReq: {}", deleteReq.toString());
 
-//        Lab lab = labRepository.getLabByLabname(deleteReq.labname);
-//        log.info("Lab : {} {}", lab.getLab_id(),lab.getLabname());
-//        log.info("labname in deleteReq: {}", deleteReq.labname);
         Optional<BookingRecord> result = existDeleteRecordInLab(deleteReq.labname,deleteReq);
         if (result.isEmpty()) {
             log.info("bookingRecord is null");
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
         BookingRecord bookingRecord = result.get();
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String username = auth.getName();
+        String username = jwt.getClaimAsString("preferred_username");
+//        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+//        String username = auth.getName();
 
         log.info("username logged in: {}", username);
         if (!username.equals(deleteReq.bookuser)) {
