@@ -34,8 +34,11 @@ public class BookUserService {
     }
 
     public Optional<BookUser> findBookUserByUsername(String username) {
-        Optional<BookUser> user = Optional.ofNullable(bookUserRepository.findBookUserByUsername(username).orElseThrow(
-                () -> new RuntimeException("Problem with user")));
+//        Optional<BookUser> user = Optional.ofNullable(bookUserRepository.findBookUserByUsername(username).orElseThrow(
+//                () -> new RuntimeException("Problem with user")));
+
+        Optional<BookUser>  user = bookUserRepository.findBookUserByUsername(username);
+
         return user;
     }
 

@@ -1,7 +1,6 @@
 package org.exam.bookdesign.config;
 
-
-
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
 import org.springframework.core.convert.converter.Converter;
@@ -15,12 +14,12 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.stereotype.Component;
 
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toSet;
 
 @Component
+@Slf4j
 public class KeycloakJwtAuthenticationConverter implements Converter<Jwt,  AbstractAuthenticationToken> {
 
     private final JwtGrantedAuthoritiesConverter jwtGrantedAuthoritiesConverter =
@@ -61,11 +60,19 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt,  Abstr
         }
 
         Map<String,Object> resources = (Map<String, Object>) resourcesAccess.get(resourceId);
+
+        log.info("in jwt claim resource id {}",resources.toString());
+
         Collection<String> resourceRoles = (Collection<String>) resources.get("roles");
         Map<String,List<String>> eternal = (Map<String, List<String>>) resourcesAccess.get("account");
-        List<String> roles = eternal.get("roles");
+//        List<String> roles = eternal.get("roles");
 
-        return roles.stream().map(role ->
-                new SimpleGrantedAuthority("ROLE_" + role.replace("-","_"))).collect(toSet());
+        log.info("in jwt roles {}",resourceRoles.toString());
+
+        Set<SimpleGrantedAuthority> auths = resourceRoles.stream().map(role ->
+                new SimpleGrantedAuthority("ROLE_" +  role)).collect(toSet());
+
+        log.info("in authorities {}",auths.toString());
+        return auths;
     }
 }

@@ -3,31 +3,23 @@ package org.exam.bookdesign.controller;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import jakarta.persistence.AttributeOverride;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.exam.bookdesign.config.ApplicationAuditorAware;
 import org.exam.bookdesign.config.KeycloakJwtAuthenticationConverter;
 import org.exam.bookdesign.model.*;
-import org.exam.bookdesign.repository.BookUserRepository;
 import org.exam.bookdesign.repository.BookingRecordRepository;
 import org.exam.bookdesign.repository.LabRepository;
 import org.exam.bookdesign.service.BookUserService;
 import org.exam.bookdesign.service.BookingRecordService;
 import org.exam.bookdesign.service.BookingService;
 import org.exam.bookdesign.service.SendEmailService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.web.servlet.error.DefaultErrorAttributes;
 import org.springframework.data.domain.AuditorAware;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.stereotype.Controller;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
@@ -46,22 +38,8 @@ public class BookingRecordController {
     private final BookingService bookingService;
     private final BookUserService bookUserService;
     private final SendEmailService sendEmailService;
-    private final AuditorAware<String> auditorAware;
 
-
-    private String getUsername() {
-
-        return auditorAware.toString();
-
-//        Optional<String> usern = auditorAware.getCurrentAuditor();
-//
-//        //return usern.orElseThrow();
-//
-//        if (usern.isEmpty()) {
-//            return "no username";
-//        }
-//        return usern.get();
-    }
+    private String userRole;
 
     record BookingRecordRequest(
             @JsonProperty("id") int id,
@@ -103,7 +81,7 @@ public class BookingRecordController {
             @JsonProperty("labusername") String labuser
     ) {}
 
-
+   // @PreAuthorize("USER")
     @GetMapping(value = "/all",produces = {"application/json"})
     public String getAllBookingRecords() {
 
@@ -117,11 +95,21 @@ public class BookingRecordController {
     }
 
 
+//    private String getUserRole(@AuthenticationPrincipal Jwt jwt) {
+//
+//        Map<String,Object> roles = jwt.getClaim("book-client");
+//        Collection<Object> rolenames = roles.values();
+//
+//
+//        return "role";
+//    }
 
     @PostMapping(value = "/findBooking", produces = {"application/json"})
     public Optional<BookingRecordRespId> getBookingRecords(@RequestBody BookingRecordRequest bookingRecordReq) {
 
 //        return bookingRecordRepository.getBookingRecordsByLab_Labname(labname);
+
+
 
         if (bookingRecordReq == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
@@ -150,7 +138,7 @@ public class BookingRecordController {
     }
 
     @PostMapping(value="/newbooking", produces = {"application/json"})
-    public Optional<BookingRecordRespId> newBooking(@RequestBody BookingRecordRequest bookingRecordReq) {
+    public Optional<BookingRecordRespId> newBooking(@RequestBody BookingRecordRequest bookingRecordReq,@AuthenticationPrincipal Jwt jwt) {
     //public String newBooking(@RequestBody BookingRecord bookingRecord) {
 
         //if (bookingRecord == null) {
@@ -162,6 +150,10 @@ public class BookingRecordController {
         Lab lab = labRepository.getLabByLabname(bookingRecordReq.labname);
         log.info("Lab : {} {}", lab.getLab_id(),lab.getLabname());
         log.info("bookingRecordRequest start and end time: {} {} {}", bookingRecordReq.id,bookingRecordReq.start,bookingRecordReq.end);
+
+//        log.info("displaying jwt token claims {}", getUserRole(jwt));
+
+        log.info("getting user role {}", jwt.getClaimAsString("authorities"));
 
         BookingRecord bookingRecord = BookingRecord.builder()
                 //.bookingRecordId(bookingRecordReq.id)
@@ -297,11 +289,12 @@ public class BookingRecordController {
         }
         BookingRecord bookingRecord = result.get();
         String username = jwt.getClaimAsString("preferred_username");
+        String role = jwt.getClaimAsString("authorities");
 //        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 //        String username = auth.getName();
 
-        log.info("username logged in: {}", username);
-        if (!username.equals(deleteReq.bookuser)) {
+        log.info("username logged in: {} has role {}", username,role);
+        if (!username.equals(deleteReq.bookuser) && !role.contains("ROLE_ADMIN")) {
             log.info("Not authorized to delete record booked by {}",deleteReq.bookuser);
         }
         else if (bookingRecord.getBookingRecordId() != deleteReq.id){
@@ -312,8 +305,6 @@ public class BookingRecordController {
         else {
             bookingRecordService.deleteBookingRecord(bookingRecord);
             log.info("delete request {}", bookingRecord.toString());
-
-
 
             HashMap<String,String> params = prepareEmailParams(username,bookingRecord);
 //           sendEmail.emailParams(params);

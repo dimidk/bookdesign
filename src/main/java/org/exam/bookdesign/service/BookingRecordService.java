@@ -4,11 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.exam.bookdesign.model.BookingRecord;
 import org.exam.bookdesign.repository.BookingRecordRepository;
-import org.hibernate.StaleObjectStateException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.awt.print.Book;
 import java.util.List;
 
 @Service
@@ -55,19 +51,6 @@ public class BookingRecordService {
 
         bookingRecordRepository.save(record);
 
-    }
-
-    public BookingRecord findBookingRecord(BookingRecord bookingRecord) {
-
-        //return bookingRecordRepository.findBookingRecordByTimeslotAndLab(bookingRecord.getTimeslot(), bookingRecord.getLab());
-
-        //return bookingRecordRepository.getBookingRecordByTimeslotAndLabEquals(bookingRecord.getTimeslot(), bookingRecord.getLab());
-
-        log.info("find booking record with dates: {} {}",bookingRecord.getTimeslot().getStart(),bookingRecord.getTimeslot().getEnd());
-
-        //List<BookingRecord> bookings =
-
-        return bookingRecordRepository.findBookingRecordByTimeslot_StartAndTimeslot_End(bookingRecord.getTimeslot().getStart(), bookingRecord.getTimeslot().getEnd());
     }
 
     public BookingRecord findBookingRecordById(int id) {

@@ -5,22 +5,24 @@ import jakarta.persistence.AttributeOverride;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.exam.bookdesign.config.ApplicationAuditorAware;
 import org.exam.bookdesign.model.BookUser;
+import org.exam.bookdesign.model.User;
+import org.exam.bookdesign.model.Role;
 import org.exam.bookdesign.service.BookUserService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.AuditorAware;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.oauth2.core.OAuth2AccessToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 
+import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Stream;
+
+import static org.apache.coyote.http11.Constants.a;
 
 
 @RestController
@@ -67,15 +69,34 @@ public class BookUserController {
         //δεν επιστρέφει καλά τους ρόλους γιατί δεν είναι ακόμα σωστά configured αλλά γενικά βρίσκει το χρήστη κι είναι ok
         Optional<BookUser> res = bookUserService.findBookUserByUsername(username);
 
-        if (!res.isPresent()) {
+        if (res.isEmpty()) {
 
-            return new UserResponse(username, "unathorized", "unathorized");
+            //return new UserResponse(username, "unathorized", "unathorized");
+
+
+            List<String> roles = jwt.getClaimAsStringList("authorities");
+
+
+
+
+            BookUser user = BookUser.builder()
+                    .build();
+
+            user.setUsername(username);
+            user.setEmail(jwt.getClaimAsString("email"));
+            user.setFullname(jwt.getClaimAsString("name"));
+            user.setRole(Role.valueOf(roles.getFirst()));
+
+            bookUserService.addUser(user);
+
+            return  new UserResponse(username, roles.getFirst(), jwt.getSubject());
 
         }
         log.info("getUser: {}", res);
         log.info("authenticated");
-        log.info("authorities ",jwt.getClaimAsString("roles"));
+        log.info("authorities {}",jwt.getClaimAsString("authorities"));
 
-        return new UserResponse(username, jwt.getSubject(), jwt.getClaimAsString("roles"));
+        log.info("roles {} username {}",Stream.of(jwt.getClaimAsString("authorities")).toList().get(0).toString(),username);
+        return new UserResponse(username, Stream.of(jwt.getClaimAsString("authorities")).toList().get(0), jwt.getSubject());
     }
 }
