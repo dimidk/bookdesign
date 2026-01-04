@@ -3,9 +3,11 @@ package org.exam.bookdesign.model;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Data
 //@Table(name="timeslot")
@@ -16,6 +18,7 @@ import java.time.LocalDateTime;
 @Setter
 @Embeddable
 @ToString
+@Slf4j
 public class ReservedSlot {
 
    // @Id
@@ -38,10 +41,21 @@ public class ReservedSlot {
 
     public boolean overlaps(ReservedSlot reservedSlot) {
 
-        return this.start.isBefore(reservedSlot.end) &&
-                this.end.isAfter(reservedSlot.start) ||
-                (this.start.isEqual(reservedSlot.start) ||
-                        this.end.isEqual(reservedSlot.end));
+//        log.info("start date {} and reserved slot start_date {}", start, reservedSlot.start);
+//        log.info("end date {} and reserved slot end_date {}", end, reservedSlot.end);
+
+        long secondsStart  = this.start.toEpochSecond(ZoneOffset.UTC);
+        long secondsEnd = this.end.toEpochSecond(ZoneOffset.UTC);
+
+        return secondsStart < reservedSlot.end.toEpochSecond(ZoneOffset.UTC) &&
+                secondsEnd > reservedSlot.start.toEpochSecond(ZoneOffset.UTC) ||
+                (secondsStart == reservedSlot.start.toEpochSecond(ZoneOffset.UTC) ||
+                secondsEnd == reservedSlot.end.toEpochSecond(ZoneOffset.UTC));
+
+//        return this.start.isBefore(reservedSlot.end) &&
+//                this.end.isAfter(reservedSlot.start) ||
+//                (this.start.isEqual(reservedSlot.start) ||
+//                        this.end.isEqual(reservedSlot.end));
 
     }
 
