@@ -288,6 +288,7 @@ public class BookingRecordController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
         BookingRecord bookingRecord = result.get();
+        log.info("the booking record to delete {}",bookingRecord.getBookingRecordId());
         String username = jwt.getClaimAsString("preferred_username");
         String role = jwt.getClaimAsString("authorities");
 //        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
