@@ -14,15 +14,19 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Stream;
 
-import static org.apache.coyote.http11.Constants.a;
+
+/***
+ *έβαλα στο keycloak στο register να κάνει assign to ROLE USER και να
+ * γίνεται έτσι εγγραφή στο βάση. Αυτό όμως δεν το θέλω όταν κάνω login με sso
+ * και δεν μπορώ να κάνω register εκεί, γιατί είναι στο production keycloak.
+ * έτσι όποιος χρήστης θέλει να κάνει κράτηση θα πρέπει να δηλώνεται και να γίνεται
+ * add από τον administrator.
+ */
+
 
 
 @RestController
@@ -30,9 +34,6 @@ import static org.apache.coyote.http11.Constants.a;
 @Slf4j
 public class BookUserController {
     private final BookUserService bookUserService;
-
-
-   // private  ApplicationAuditorAware auditorAware;
 
     record UserResponse(@JsonProperty("username") String username,
                         @JsonProperty("role") String role,
@@ -70,14 +71,7 @@ public class BookUserController {
         Optional<BookUser> res = bookUserService.findBookUserByUsername(username);
 
         if (res.isEmpty()) {
-
-            //return new UserResponse(username, "unathorized", "unathorized");
-
-
             List<String> roles = jwt.getClaimAsStringList("authorities");
-
-
-
 
             BookUser user = BookUser.builder()
                     .build();
