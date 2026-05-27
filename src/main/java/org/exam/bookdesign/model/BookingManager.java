@@ -26,6 +26,9 @@ public class BookingManager {
 
     @Getter
     private HashMap<Lab ,List<BookingRecord>> labs ;
+
+    @Getter
+    private HashMap<String, List<String>> rooms;
     private static  BookingManager bookingManager ;
 
 
@@ -155,4 +158,8 @@ public class BookingManager {
         }
     }
 
+    public void createRooms(HashMap<String, List<String>> mapRooms) {
+
+        this.rooms = mapRooms;
+    }
 }

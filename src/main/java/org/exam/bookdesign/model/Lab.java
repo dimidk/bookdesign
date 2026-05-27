@@ -24,6 +24,18 @@ public class Lab {
     @JsonProperty("labname")
     private String labname;
 
+    @Column(name="type")
+    @JsonProperty("type")
+    private String type;
+
+    @Column(name="tm")
+    @JsonProperty("tm")
+    private String tm;
+
+    @Column(name="seats")
+    @JsonProperty("seats")
+    private String seats;
+
    // @OneToMany(mappedBy = "timeslot",cascade = CascadeType.ALL)
     //private List<ReservedSlot> timeslot = new ArrayList<>()
 

@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -33,6 +34,10 @@ public class BookingService {
     //create labs that are in database
     public void loadFromDB(List<Lab> allLabs) {
         bookingManager.createLabs(allLabs);
+    }
+
+    public void loadFromDB(HashMap<String,List<String>> mapRooms) {
+        bookingManager.createRooms(mapRooms);
     }
 
     //load information records from database for a specific lab

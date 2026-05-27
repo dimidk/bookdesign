@@ -15,7 +15,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @AllArgsConstructor
@@ -47,13 +49,23 @@ public class LabController {
     @GetMapping("/labs")
     public List<String> getLabs() {
         List<String> labnames = new ArrayList<>();
+
+        HashMap<String,List<String>> mapRooms = new HashMap<>();
+
         List<Lab> labs = labRepository.findAll();
         //labRepository.findAll().forEach(lab -> {labs.put(lab.getLabname(),lab);});
+
+        List<String> listLabs = labs.stream().filter(l -> l.getType().equals("Εργαστήριο")).map(Lab::getLabname).collect(Collectors.toList());
+        List<String> listClassrooms = labs.stream().filter(l-> l.getType().equals("Αίθουσα")).map(Lab::getLabname).collect(Collectors.toList());
+        mapRooms.put("Εργαστήριο",listLabs);
+        mapRooms.put("Αίθουσα",listClassrooms);
+
 
         labs.forEach(lab -> labnames.add(lab.getLabname()));
 
         bookingService.loadFromDB(labs);
-
+        bookingService.loadFromDB(mapRooms);
+//must return labname and type to process with classrooms reservation
         //loadLabs(labnames);
         return labnames;
 

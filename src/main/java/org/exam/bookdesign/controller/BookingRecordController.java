@@ -310,8 +310,9 @@ public class BookingRecordController {
             HashMap<String,String> params = prepareEmailParams(username,bookingRecord);
 //           sendEmail.emailParams(params);
             sendEmailService.sendNewMail(params.get("To"), params.get("Subject"), params.get("Body"));
-            String to_sec = "mkyrieri@central.ntua.gr";
-            sendEmailService.sendNewMail(to_sec, params.get("Subject"), params.get("Body"));
+            //stop annoying Maria
+//            String to_sec = "mkyrieri@central.ntua.gr";
+//            sendEmailService.sendNewMail(to_sec, params.get("Subject"), params.get("Body"));
 
 
         }
