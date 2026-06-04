@@ -49,7 +49,7 @@ public class BookUserController {
 //
         //Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = jwt.getClaimAsString("preferred_username");
-        log.info("getUser: {}", username);
+        log.info("getUser from jwt: {}", username);
         if (username == null ) {
             log.info("unathorized");
             return new UserResponse(username, "unathorized", "unathorized");
