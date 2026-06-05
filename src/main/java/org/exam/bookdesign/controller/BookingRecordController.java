@@ -18,6 +18,7 @@ import org.springframework.data.domain.AuditorAware;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -38,6 +39,7 @@ public class BookingRecordController {
     private final BookingService bookingService;
     private final BookUserService bookUserService;
     private final SendEmailService sendEmailService;
+    private final KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
 
     private String userRole;
 
@@ -290,12 +292,26 @@ public class BookingRecordController {
         BookingRecord bookingRecord = result.get();
         log.info("the booking record to delete {}",bookingRecord.getBookingRecordId());
         String username = jwt.getClaimAsString("preferred_username");
+
+        List<GrantedAuthority> authorities = keycloakJwtAuthenticationConverter.convert(jwt).getAuthorities().stream()
+                .filter(s -> s.getAuthority().contains("ADMIN")).toList();
+        //.equals("USER")).toList();
+        if (authorities.isEmpty()) {
+            userRole = "USER";
+        }
+        else {
+            userRole = authorities.get(0).getAuthority();
+        }
+
+
+
         String role = jwt.getClaimAsString("authorities");
 //        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 //        String username = auth.getName();
 
         log.info("username logged in: {} has role {}", username,role);
-        if (!username.equals(deleteReq.bookuser) && !role.contains("ROLE_ADMIN")) {
+//        if (!username.equals(deleteReq.bookuser) && !role.contains("ROLE_ADMIN")) {
+        if (!username.equals(deleteReq.bookuser) && !userRole.contains("ADMIN")) {
             log.info("Not authorized to delete record booked by {}",deleteReq.bookuser);
         }
         else if (bookingRecord.getBookingRecordId() != deleteReq.id){
@@ -310,8 +326,8 @@ public class BookingRecordController {
             HashMap<String,String> params = prepareEmailParams(username,bookingRecord);
 //           sendEmail.emailParams(params);
             sendEmailService.sendNewMail(params.get("To"), params.get("Subject"), params.get("Body"));
-            String to_sec = "mkyrieri@central.ntua.gr";
-            sendEmailService.sendNewMail(to_sec, params.get("Subject"), params.get("Body"));
+//            String to_sec = "mkyrieri@central.ntua.gr";
+//            sendEmailService.sendNewMail(to_sec, params.get("Subject"), params.get("Body"));
 
 
         }
