@@ -68,9 +68,12 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt,  Abstr
 //        List<String> roles = eternal.get("roles");
 
         log.info("in jwt roles {}",resourceRoles.toString());
+    //εδώ δηλώνεται το authorities το οποίο χρησιμοποιείται στο BookUserController για να γίνει add ο χρήστης στη βάση. Έτσι ήταν παλιά.
+//        Set<SimpleGrantedAuthority> auths = resourceRoles.stream().map(role ->
+//                new SimpleGrantedAuthority("ROLE_" +  role)).collect(toSet());
 
         Set<SimpleGrantedAuthority> auths = resourceRoles.stream().map(role ->
-                new SimpleGrantedAuthority("ROLE_" +  role)).collect(toSet());
+                new SimpleGrantedAuthority(role)).collect(toSet());
 
         log.info("in authorities {}",auths.toString());
         return auths;
