@@ -3,29 +3,26 @@ package org.exam.bookdesign.controller;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import jakarta.persistence.AttributeOverride;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.exam.bookdesign.config.KeycloakJwtAuthenticationConverter;
 import org.exam.bookdesign.model.*;
 import org.exam.bookdesign.repository.BookingRecordRepository;
 import org.exam.bookdesign.repository.LabRepository;
-import org.exam.bookdesign.service.BookUserService;
-import org.exam.bookdesign.service.BookingRecordService;
-import org.exam.bookdesign.service.BookingService;
-import org.exam.bookdesign.service.SendEmailService;
-import org.springframework.data.domain.AuditorAware;
+import org.exam.bookdesign.service.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+
 
 @RestController
 @RequiredArgsConstructor
@@ -40,6 +37,7 @@ public class BookingRecordController {
     private final BookUserService bookUserService;
     private final SendEmailService sendEmailService;
     private final KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
+    private final TicketingService ticketingService;
 
     private String userRole;
 
@@ -81,6 +79,17 @@ public class BookingRecordController {
             //@DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             @JsonFormat(pattern="yyyy-MM-dd HH:mm:ss", shape = JsonFormat.Shape.STRING) LocalDateTime end,
             @JsonProperty("labusername") String labuser
+    ) {}
+
+    record TicketRequest(
+            @JsonProperty("Content-Type") String contentType,
+            @JsonProperty("K-Api-Key") String apiKey,
+            @JsonProperty("projectAlias") String projectAlias,
+            @JsonProperty("title") String title,
+            @JsonProperty("description") String description,
+            @JsonProperty("onBehalfOfUsername") String fromUser,
+            @JsonProperty("descriptionIsHtml") boolean descrHtml
+
     ) {}
 
    // @PreAuthorize("USER")
@@ -140,7 +149,8 @@ public class BookingRecordController {
     }
 
     @PostMapping(value="/newbooking", produces = {"application/json"})
-    public Optional<BookingRecordRespId> newBooking(@RequestBody BookingRecordRequest bookingRecordReq,@AuthenticationPrincipal Jwt jwt) {
+    public Optional<BookingRecordRespId> newBooking(@RequestBody BookingRecordRequest bookingRecordReq,@AuthenticationPrincipal Jwt jwt)
+            throws IOException {
     //public String newBooking(@RequestBody BookingRecord bookingRecord) {
 
         //if (bookingRecord == null) {
@@ -185,6 +195,14 @@ public class BookingRecordController {
         bookingRecordService.add(bookingRecord);
         log.info("booking record added in db");
 
+        HashMap<String,String> params = prepareEmailParams(bookingRecord.getBookUser(),bookingRecord);
+//           sendEmail.emailParams(params);
+        sendEmailService.sendNewMail(params.get("To"), params.get("Subject"), "Κάνατε μια νέα κράτηση για εργαστήριο/αίθουσα");
+        sendEmailService.sendNewMail("testdimi_1@mail.ntua.gr", params.get("Subject"), "Έγινε έα κράτηση για εργαστήριο/αίθουσα");
+        String username = jwt.getClaimAsString("preferred_username");
+
+        createTicketingRequest(username,bookingRecord,0);
+
         return Optional.of(new BookingRecordRespId(
                 bookingRecord.getBookingRecordId(),
                 bookingRecordReq.bookuser,
@@ -196,7 +214,8 @@ public class BookingRecordController {
     @PostMapping(value="/repeat_booking/{start}/{end}")
     public Optional<Map<Integer,List<BookingRecordRespId>>> repeatNewBooking(@RequestBody BookingRecordRequest bookingRecordReq,
                                                             @PathVariable String start,
-                                                            @PathVariable String end) {
+                                                            @PathVariable String end, @AuthenticationPrincipal Jwt jwt)
+                                    throws IOException {
 
         Map<Integer,List<BookingRecordRespId>> resResp = new HashMap<>();
 
@@ -242,6 +261,14 @@ public class BookingRecordController {
 
         bookingRecordRespIds = createResponseList(newRecords);
         resResp.put(1,bookingRecordRespIds);
+
+        HashMap<String,String> params = prepareEmailParams(newRecord.getBookUser(),newRecord);
+//           sendEmail.emailParams(params);
+        sendEmailService.sendNewMail(params.get("To"), params.get("Subject"), "Κάνατε μια επαναλαμβανόμενη κράτηση για εργαστήριο/αίθουσα για " + weeks + " εβδομάδες");
+        sendEmailService.sendNewMail("testdimi_1@mail.ntua.gr", params.get("Subject"), "Έγινε επαναλαμβανόμενη κράτηση για εργαστήριο/αίθουσα για εβδομάδες "+weeks);
+        String username = jwt.getClaimAsString("preferred_username");
+        createTicketingRequest(username,newRecord,weeks);
+
         return Optional.of(resResp);
     }
 
@@ -326,6 +353,7 @@ public class BookingRecordController {
             HashMap<String,String> params = prepareEmailParams(username,bookingRecord);
 //           sendEmail.emailParams(params);
             sendEmailService.sendNewMail(params.get("To"), params.get("Subject"), params.get("Body"));
+            sendEmailService.sendNewMail("testdimi_1@mail.ntua.gr", params.get("Subject"), params.get("Body"));
 //            String to_sec = "mkyrieri@central.ntua.gr";
 //            sendEmailService.sendNewMail(to_sec, params.get("Subject"), params.get("Body"));
 
@@ -520,11 +548,11 @@ public class BookingRecordController {
         String dateStart = record.getTimeslot().getStart().toString().split("T")[0];
 
 //        String to  = user.getEmail();
-        String to = "dimideka.dimi@gmail.com";
-
+//        String to = "dimideka.dimi@gmail.com";
+        String to = user.getEmail();
         params.put("To",to);
 
-        String subject = "Days and Times of reservation Lab changed!";
+        String subject = "Κρατήσεις Εργαστηρίων / Αιθουσών!";
         params.put("Subject",subject);
 
         String body = "Dear user " + user.getFullname() + ",\n\n";
@@ -536,4 +564,34 @@ public class BookingRecordController {
         params.put("Body",body);
         return params;
     }
+
+    private void createTicketingRequest(String username, BookingRecord bookingRecord, long weeks) throws IOException {
+
+        String description = "";
+
+        if (weeks == 0)
+            description = "User reported νέα κράτηση για το  " + bookingRecord.getLab() + " από  " + bookingRecord.getTimeslot().getStart().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) +
+                    " μέχρι " + bookingRecord.getTimeslot().getEnd().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        else
+            description = "User reported επαναλαμβανόμενη κράτηση για το  " + bookingRecord.getLab() + " από  " + bookingRecord.getTimeslot().getStart().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) +
+                    " μέχρι " + bookingRecord.getTimeslot().getEnd().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + " για " + weeks+1 + " εβδομάδες";
+
+        Ticket ticket = Ticket.builder()
+                .projectAlias("test")
+                .title("Νέα Κράτηση " + bookingRecord.getTitle())
+                .description(description)
+                .onBehalfOfUsername(username.split("@")[0])
+                .descriptionIsHtml(false)
+                .build();
+        if (bookingRecord.getBookUser().contains("admin"))
+            ticket.setOnBehalfOfUsername("dekadimi");
+
+        try {
+            ticketingService.sendTicket(ticket);
+        } catch (org.apache.hc.core5.http.ParseException e) {
+            log.error("Failed to send ticket", e);
+        }
+
+    }
+
 }

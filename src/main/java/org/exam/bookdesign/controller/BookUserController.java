@@ -45,7 +45,8 @@ public class BookUserController {
 
     record UserResponse(@JsonProperty("username") String username,
                         @JsonProperty("role") String role,
-                        @JsonProperty("password") String password) {}
+                        @JsonProperty("password") String password,
+                        @JsonProperty("userEmail") String email) {}
 
     @GetMapping("/user")
     public UserResponse getUser(@AuthenticationPrincipal Jwt jwt) {
@@ -70,7 +71,7 @@ public class BookUserController {
 
         if (username == null ) {
             log.info("unathorized");
-            return new UserResponse(username, "unathorized", "unathorized");
+            return new UserResponse(username, "unathorized", "unathorized","");
         }
 //
 //        Optional<BookUser> res = bookUserService.findBookUserByUsername(userDetails.getUsername());
@@ -88,6 +89,7 @@ public class BookUserController {
         //δεν επιστρέφει καλά τους ρόλους γιατί δεν είναι ακόμα σωστά configured αλλά γενικά βρίσκει το χρήστη κι είναι ok
         Optional<BookUser> res = bookUserService.findBookUserByUsername(username);
 
+
         if (res.isEmpty()) {
             List<String> roles = jwt.getClaimAsStringList("authorities");
 
@@ -101,13 +103,13 @@ public class BookUserController {
 
             bookUserService.addUser(user);
 
-            return  new UserResponse(username, userRole, jwt.getSubject());
+            return  new UserResponse(username, userRole, jwt.getSubject(),user.getEmail());
 
         }
         log.info("getUser: {}", res);
         log.info("authenticated");
 
         log.info("roles {} username {}",userRole,username);
-        return new UserResponse(username, userRole, jwt.getSubject());
+        return new UserResponse(username, userRole, jwt.getSubject(),res.get().getEmail());
     }
 }
