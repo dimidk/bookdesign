@@ -120,18 +120,35 @@ public class BookingService {
         return numberOfWeeks;
     }
 
-    public List<BookingRecord> filterBookingRecords(String labname, LocalDateTime start, int time) {
+    public List<BookingRecord> filterBookingRecords(String labname, LocalDateTime startDate, int time) {
 
+        List<BookingRecord> filteredRecords;
         List<BookingRecord> records = queryBookingRecordsByLab(labname);
-        LocalDateTime endDate = start.plusWeeks(time);
+        LocalDateTime endDate = startDate.plusWeeks(time);
+        log.info("start date is {}", startDate);
+        log.info("end date is {}", endDate);
 
-        List<BookingRecord> filteredRecords = records.stream()
-                .filter(record -> {
-                    LocalDateTime currentDate = record.getTimeslot().getStart();
-                    return (currentDate != null &&
-                            !currentDate.isBefore(start) &&
-                            !currentDate.isAfter(endDate));
-                }).toList();
+        if (time > 0) {
+
+            filteredRecords = records.stream()
+                    .filter(bookingRecord -> {
+                        LocalDateTime current = bookingRecord.getTimeslot().getStart();
+                        long timeBetween = ChronoUnit.DAYS.between(startDate,current);
+                        return timeBetween % 7 == 0 ;
+            }).toList();
+        }
+        else {
+            filteredRecords = records.stream()
+                    .filter(record -> {
+                        log.info("current record {}", record.toString());
+                        LocalDateTime currentDate = record.getTimeslot().getStart();
+                        LocalDateTime currentDateEnd = record.getTimeslot().getEnd();
+
+                        return (currentDate != null &&
+                                !currentDate.isBefore(startDate) &&
+                                !currentDate.isAfter(endDate));
+                    }).toList();
+        }
         return filteredRecords;
     }
 

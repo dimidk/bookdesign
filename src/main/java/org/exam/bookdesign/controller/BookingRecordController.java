@@ -25,6 +25,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 
 @RestController
@@ -294,8 +295,8 @@ public class BookingRecordController {
         emailExecutor.submit(new Runnable() {
             @Override
             public void run() {
-                sendEmailService.sendNewMail(params.get("To"), params.get("Subject"), "Κάνατε μια επαναλαμβανόμενη κράτηση για εργαστήριο/αίθουσα για " + weeks + " εβδομάδες");
-                sendEmailService.sendNewMail("testdimi_1@mail.ntua.gr", params.get("Subject"), "Έγινε επαναλαμβανόμενη κράτηση για εργαστήριο/αίθουσα για εβδομάδες "+weeks);
+                sendEmailService.sendNewMail(params.get("To"), params.get("Subject"), "Κάνατε μια επαναλαμβανόμενη κράτηση για εργαστήριο/αίθουσα για " + weeks+1 + " εβδομάδες");
+                sendEmailService.sendNewMail("testdimi_1@mail.ntua.gr", params.get("Subject"), "Έγινε επαναλαμβανόμενη κράτηση για εργαστήριο/αίθουσα για εβδομάδες "+weeks+1);
             }
         });
         emailExecutor.shutdown();
@@ -377,8 +378,8 @@ public class BookingRecordController {
             String deleteBody = "Dear user " + user.getFullname() + ",\n\n";
             deleteBody = deleteBody + "Τα διατμηματικά εργαστήρια είναι ελεύθερα για κάποιες μέρες και ώρες μετά από ακυρώσεις.  \n";
             deleteBody = deleteBody + "Συγκεκριμένα το εργαστήριο " + bookingRecord.getLab() + " την ημερομηνία " + bookingRecord.getTimeslot().getStart().toLocalDate() +
-                    " " + bookingRecord.getTimeslot().getStart() +"-"
-                    + bookingRecord.getTimeslot().getEnd() + "\n";
+                    " " + bookingRecord.getTimeslot().getStart().toString().split("T")[1] +" - "
+                    + bookingRecord.getTimeslot().getEnd().toString().split("T")[1] + "\n";
             deleteBody = deleteBody + "Παρακαλώ ελέγξτε την περίπτωση αν επιθυμείτε να κάνετε κράτηση αυτές τις μέρες.  \n\n";
             deleteBody = deleteBody + "Με εκτίμηση \n\n" + "Central of National Technical University of Athens";
 
@@ -445,7 +446,11 @@ public class BookingRecordController {
             log.info("Not authorized to delete booking record");
         }
         else {
-            List<BookingRecord> deletionRecords = bookingService.filterBookingRecords(deleteReq.labname, deleteReq.start, Integer.parseInt(String.valueOf(weeks)));
+            List<BookingRecord> deletionRecords = bookingService.filterBookingRecords(deleteReq.labname, deleteReq.start, Integer.parseInt(String.valueOf(weeks)))
+                    .stream().filter(rec -> rec.getTitle().equals(deleteReq.title)).collect(Collectors.toList());
+
+//            deletionRecords.stream().forEach(deletionRecord -> {log.info("record to be deleted {}", deletionRecord.toString());});
+
             if (deletionRecords.isEmpty()) {
                 log.info("There are no records to delete");
                 return Optional.empty();
@@ -456,8 +461,8 @@ public class BookingRecordController {
             String deleteBody = "Dear user " + bookingRecord.getBookUser() + ",\n\n";
             deleteBody = deleteBody + "Τα διατμηματικά εργαστήρια είναι ελεύθερα για κάποιες μέρες και ώρες μετά από ακυρώσεις.  \n";
             deleteBody = deleteBody + "Συγκεκριμένα το εργαστήριο " + bookingRecord.getLab() + " την ημερομηνία " + bookingRecord.getTimeslot().getStart().toLocalDate() +
-                    " " + bookingRecord.getTimeslot().getStart() +"-"
-                    + bookingRecord.getTimeslot().getEnd() + "\n";
+                    " " + bookingRecord.getTimeslot().getStart().toString().split("T")[1] +"-"
+                    + bookingRecord.getTimeslot().getEnd().toString().split("T")[1] + "\n";
             deleteBody = deleteBody + "Παρακαλώ ελέγξτε την περίπτωση αν επιθυμείτε να κάνετε κράτηση αυτές τις μέρες.  \n\n";
             deleteBody = deleteBody + "Με εκτίμηση \n\n" + "Central of National Technical University of Athens";
 
@@ -601,9 +606,6 @@ public class BookingRecordController {
     private Optional<BookingRecord> existDeleteRecordInLab(String labname,DeleteBookingRequest deleteReq) {
 
         List<BookingRecord> records = bookingRecordService.findBookingRecordsByLabname(labname);
-
-        records.stream().forEach(dbRecord -> {log.info("dbRecord: {}", dbRecord.toString());});
-
         Optional<BookingRecord> resultById = records.stream().filter(r -> r.getBookingRecordId() == deleteReq.id).findFirst();
 
         Optional<BookingRecord> result = records.stream().filter(r ->
