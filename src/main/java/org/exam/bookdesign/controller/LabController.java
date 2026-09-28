@@ -44,18 +44,27 @@ public class LabController {
 //        return BookingManager.getInstance().getLabs();
 //    }
 
-    @GetMapping("/labs")
-    public List<String> getLabs() {
-        List<String> labnames = new ArrayList<>();
-        List<Lab> labs = labRepository.findAll();
-        //labRepository.findAll().forEach(lab -> {labs.put(lab.getLabname(),lab);});
+// Change 1: 28.9.2026 Getting and number of seats for each lab
 
-        labs.forEach(lab -> labnames.add(lab.getLabname()));
+    record LabRecordResp(
+            @JsonProperty("labname") String labname,
+            @JsonProperty("seats") int seats
+    ){}
+    @GetMapping("/labs")
+//    public List<String> getLabs() {
+    public List<LabRecordResp> getLabs() {
+
+        List<LabRecordResp> labinfo = new ArrayList<>();
+        List<Lab> labs = labRepository.findAll();
+//        labs.forEach(lab -> labnames.add(lab.getLabname()));
+
+        labs.forEach(lab -> {
+            LabRecordResp resp = new LabRecordResp(lab.getLabname(), lab.getSeats());
+            labinfo.add(resp);
+        });
 
         bookingService.loadFromDB(labs);
-
-        //loadLabs(labnames);
-        return labnames;
+        return labinfo;
 
     }
 
