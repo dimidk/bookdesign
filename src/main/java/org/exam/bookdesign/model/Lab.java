@@ -4,9 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Entity
 @AllArgsConstructor
 @NoArgsConstructor
@@ -32,9 +29,10 @@ public class Lab {
     @JsonProperty("tm")
     private String tm;
 
+//Change 1: 28.9.2026
     @Column(name="seats")
     @JsonProperty("seats")
-    private String seats;
+    private int seats;
 
    // @OneToMany(mappedBy = "timeslot",cascade = CascadeType.ALL)
     //private List<ReservedSlot> timeslot = new ArrayList<>()

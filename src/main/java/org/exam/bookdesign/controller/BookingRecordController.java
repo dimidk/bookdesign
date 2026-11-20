@@ -3,29 +3,30 @@ package org.exam.bookdesign.controller;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import jakarta.persistence.AttributeOverride;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.exam.bookdesign.config.KeycloakJwtAuthenticationConverter;
 import org.exam.bookdesign.model.*;
 import org.exam.bookdesign.repository.BookingRecordRepository;
 import org.exam.bookdesign.repository.LabRepository;
-import org.exam.bookdesign.service.BookUserService;
-import org.exam.bookdesign.service.BookingRecordService;
-import org.exam.bookdesign.service.BookingService;
-import org.exam.bookdesign.service.SendEmailService;
-import org.springframework.data.domain.AuditorAware;
+import org.exam.bookdesign.service.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+
+import javax.swing.text.html.Option;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
+
 
 @RestController
 @RequiredArgsConstructor
@@ -40,6 +41,8 @@ public class BookingRecordController {
     private final BookUserService bookUserService;
     private final SendEmailService sendEmailService;
     private final KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
+    private final TicketingService ticketingService;
+    private final ThreadService threadService;
 
     private String userRole;
 
@@ -81,6 +84,17 @@ public class BookingRecordController {
             //@DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             @JsonFormat(pattern="yyyy-MM-dd HH:mm:ss", shape = JsonFormat.Shape.STRING) LocalDateTime end,
             @JsonProperty("labusername") String labuser
+    ) {}
+
+    record TicketRequest(
+            @JsonProperty("Content-Type") String contentType,
+            @JsonProperty("K-Api-Key") String apiKey,
+            @JsonProperty("projectAlias") String projectAlias,
+            @JsonProperty("title") String title,
+            @JsonProperty("description") String description,
+            @JsonProperty("onBehalfOfUsername") String fromUser,
+            @JsonProperty("descriptionIsHtml") boolean descrHtml
+
     ) {}
 
    // @PreAuthorize("USER")
@@ -140,7 +154,8 @@ public class BookingRecordController {
     }
 
     @PostMapping(value="/newbooking", produces = {"application/json"})
-    public Optional<BookingRecordRespId> newBooking(@RequestBody BookingRecordRequest bookingRecordReq,@AuthenticationPrincipal Jwt jwt) {
+    public Optional<BookingRecordRespId> newBooking(@RequestBody BookingRecordRequest bookingRecordReq,@AuthenticationPrincipal Jwt jwt)
+            throws IOException {
     //public String newBooking(@RequestBody BookingRecord bookingRecord) {
 
         //if (bookingRecord == null) {
@@ -185,6 +200,31 @@ public class BookingRecordController {
         bookingRecordService.add(bookingRecord);
         log.info("booking record added in db");
 
+        Optional<BookUser> userOptional = bookUserService.findBookUserByUsername(bookingRecord.getBookUser());
+        BookUser user = userOptional.get();
+        String body = "Dear user " + user.getFullname() + ",\n\n";
+        body = body + "Έγινε μια νέα κράτηση για εργαστήριο/αίθουσα \n";
+
+        HashMap<String,String> params = prepareEmailParams(bookingRecord.getBookUser(),bookingRecord,body);
+
+//        ExecutorService emailExecutor = Executors.newSingleThreadExecutor();
+//        emailExecutor.submit(new Runnable() {
+//            @Override
+//            public void run() {
+//                sendEmailService.sendNewMail(params.get("To"), params.get("Subject"), "Έγινε μια νέα κράτηση για εργαστήριο/αίθουσα \n");
+//                sendEmailService.sendNewMail("testdimi_1@mail.ntua.gr", params.get("Subject"), "Έγινε μια νέα κράτηση για εργαστήριο/αίθουσα \n");
+//            }
+//        });
+//        emailExecutor.shutdown();
+
+
+//check for booking-admin user the email if is correct
+        threadService.myExecute(params,0);
+
+        String username = jwt.getClaimAsString("preferred_username");
+        //maybe a thread for ticketing is a better and faster approach. This goes for sending mail too
+        createTicketingRequest(username,bookingRecord,0);
+
         return Optional.of(new BookingRecordRespId(
                 bookingRecord.getBookingRecordId(),
                 bookingRecordReq.bookuser,
@@ -196,7 +236,8 @@ public class BookingRecordController {
     @PostMapping(value="/repeat_booking/{start}/{end}")
     public Optional<Map<Integer,List<BookingRecordRespId>>> repeatNewBooking(@RequestBody BookingRecordRequest bookingRecordReq,
                                                             @PathVariable String start,
-                                                            @PathVariable String end) {
+                                                            @PathVariable String end, @AuthenticationPrincipal Jwt jwt)
+                                    throws IOException {
 
         Map<Integer,List<BookingRecordRespId>> resResp = new HashMap<>();
 
@@ -242,6 +283,29 @@ public class BookingRecordController {
 
         bookingRecordRespIds = createResponseList(newRecords);
         resResp.put(1,bookingRecordRespIds);
+
+//        Optional<BookUser> userOptional = bookUserService.findBookUserByUsername(newRecord.getBookUser());
+//        BookUser user = userOptional.get();
+        String body = "Dear user " + newRecord.getBookUser() + ",\n\n";
+        body = body + "Κάνατε μια επαναλαμβανόμενη κράτηση για εργαστήριο/αίθουσα για " + weeks + 1 + " εβδομάδες\n";
+
+        HashMap<String,String> params = prepareEmailParams(newRecord.getBookUser(),newRecord,body);
+
+        ExecutorService emailExecutor = Executors.newSingleThreadExecutor();
+        emailExecutor.submit(new Runnable() {
+            @Override
+            public void run() {
+                sendEmailService.sendNewMail(params.get("To"), params.get("Subject"), "Κάνατε μια επαναλαμβανόμενη κράτηση για εργαστήριο/αίθουσα για " + weeks+1 + " εβδομάδες");
+                sendEmailService.sendNewMail("testdimi_1@mail.ntua.gr", params.get("Subject"), "Έγινε επαναλαμβανόμενη κράτηση για εργαστήριο/αίθουσα για εβδομάδες "+weeks+1);
+            }
+        });
+        emailExecutor.shutdown();
+
+//        threadService.myExecute(params,weeks);
+
+        String username = jwt.getClaimAsString("preferred_username");
+        createTicketingRequest(username,newRecord,weeks);
+
         return Optional.of(resResp);
     }
 
@@ -260,20 +324,6 @@ public class BookingRecordController {
                                 LocalDateTime end,
                                 @JsonProperty("labusername") String labusername
                                 ) {}
-
-//    record DeleteBookingResp(
-//            @JsonProperty("id") int id,
-//            @JsonProperty("bookusername") String bookuser,
-//            @JsonProperty("labname") String labname,
-//            @JsonProperty("title") String title,
-//            @JsonProperty("start")
-//            //@DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-//            @JsonFormat(pattern="yyyy-MM-dd HH:mm:ss", shape = JsonFormat.Shape.STRING) LocalDateTime start,
-//            @JsonProperty("end")
-//            //@DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-//            @JsonFormat(pattern="yyyy-MM-dd HH:mm:ss", shape = JsonFormat.Shape.STRING) LocalDateTime end,
-//            @JsonProperty("labusername") String labuser
-//    ) {}
 
     @PostMapping(value = "/delete",produces = {"application/json"})
     public  DeleteBookingResponse deleteBookingRecord(@RequestBody DeleteBookingRequest deleteReq, @AuthenticationPrincipal Jwt jwt) {
@@ -323,12 +373,40 @@ public class BookingRecordController {
             bookingRecordService.deleteBookingRecord(bookingRecord);
             log.info("delete request {}", bookingRecord.toString());
 
-            HashMap<String,String> params = prepareEmailParams(username,bookingRecord);
-//           sendEmail.emailParams(params);
-            sendEmailService.sendNewMail(params.get("To"), params.get("Subject"), params.get("Body"));
-//            String to_sec = "mkyrieri@central.ntua.gr";
-//            sendEmailService.sendNewMail(to_sec, params.get("Subject"), params.get("Body"));
+            Optional<BookUser> userOptional = bookUserService.findBookUserByUsername(username);
+            BookUser user = userOptional.get();
+            String deleteBody = "Dear user " + user.getFullname() + ",\n\n";
+            deleteBody = deleteBody + "Τα διατμηματικά εργαστήρια είναι ελεύθερα για κάποιες μέρες και ώρες μετά από ακυρώσεις.  \n";
+            deleteBody = deleteBody + "Συγκεκριμένα το εργαστήριο " + bookingRecord.getLab() + " την ημερομηνία " + bookingRecord.getTimeslot().getStart().toLocalDate() +
+                    " " + bookingRecord.getTimeslot().getStart().toString().split("T")[1] +" - "
+                    + bookingRecord.getTimeslot().getEnd().toString().split("T")[1] + "\n";
+            deleteBody = deleteBody + "Παρακαλώ ελέγξτε την περίπτωση αν επιθυμείτε να κάνετε κράτηση αυτές τις μέρες.  \n\n";
+            deleteBody = deleteBody + "Με εκτίμηση \n\n" + "Central of National Technical University of Athens";
 
+            HashMap<String,String> params = prepareEmailParams(username,bookingRecord,deleteBody);
+//           sendEmail.emailParams(params);
+            //too slow, thinking of using thread for sending mail and possibly using thread for creating ticket
+
+            ExecutorService emailExecutorService = Executors.newSingleThreadExecutor();
+            emailExecutorService.submit(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                            sendEmailService.sendNewMail(params.get("To"), params.get("Subject"),params.get("Body"));
+                            sendEmailService.sendNewMail(username, params.get("Subject"),params.get("Body"));
+                    }
+                    catch (Exception e) {
+                        log.error("error in email thread: ", e);
+                    }
+
+                }
+            });
+            emailExecutorService.shutdown();
+
+//            threadService.myExecute(params,0);
+
+//            sendEmailService.sendNewMail(params.get("To"), params.get("Subject"), params.get("Body"));
+//            sendEmailService.sendNewMail("testdimi_1@mail.ntua.gr", params.get("Subject"), params.get("Body"));
 
         }
         
@@ -339,6 +417,8 @@ public class BookingRecordController {
                 bookingRecord.getTimeslot().getStart(),
                 bookingRecord.getTimeslot().getEnd(), bookingRecord.getLabUser().getFirstname());
     }
+
+    //add JWT role to be sure for deletion rights
 
     @PostMapping(value="/repeat_deleting/{start}/{end}")
     public Optional<DeleteBookingResponse> repeatDeleteBooking(@RequestBody DeleteBookingRequest deleteReq,
@@ -351,7 +431,6 @@ public class BookingRecordController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
         log.info("bookingRecordReq: {}", deleteReq.toString());
-
 
         String time = deleteReq.start.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm"));
         long weeks = bookingService.findWeeksToRepeat(start,end,time);
@@ -367,13 +446,47 @@ public class BookingRecordController {
             log.info("Not authorized to delete booking record");
         }
         else {
-            List<BookingRecord> deletionRecords = bookingService.filterBookingRecords(deleteReq.labname, deleteReq.start, Integer.parseInt(String.valueOf(weeks)));
+            List<BookingRecord> deletionRecords = bookingService.filterBookingRecords(deleteReq.labname, deleteReq.start, Integer.parseInt(String.valueOf(weeks)))
+                    .stream().filter(rec -> rec.getTitle().equals(deleteReq.title)).collect(Collectors.toList());
+
+//            deletionRecords.stream().forEach(deletionRecord -> {log.info("record to be deleted {}", deletionRecord.toString());});
+
             if (deletionRecords.isEmpty()) {
                 log.info("There are no records to delete");
                 return Optional.empty();
             }
             bookingService.deleteRepeatedBookings(deletionRecords);
             log.info("delete request {}", deleteReq.toString());
+
+            String deleteBody = "Dear user " + bookingRecord.getBookUser() + ",\n\n";
+            deleteBody = deleteBody + "Τα διατμηματικά εργαστήρια είναι ελεύθερα για κάποιες μέρες και ώρες μετά από ακυρώσεις.  \n";
+            deleteBody = deleteBody + "Συγκεκριμένα το εργαστήριο " + bookingRecord.getLab() + " την ημερομηνία " + bookingRecord.getTimeslot().getStart().toLocalDate() +
+                    " " + bookingRecord.getTimeslot().getStart().toString().split("T")[1] +"-"
+                    + bookingRecord.getTimeslot().getEnd().toString().split("T")[1] + "\n";
+            deleteBody = deleteBody + "Παρακαλώ ελέγξτε την περίπτωση αν επιθυμείτε να κάνετε κράτηση αυτές τις μέρες.  \n\n";
+            deleteBody = deleteBody + "Με εκτίμηση \n\n" + "Central of National Technical University of Athens";
+
+            HashMap<String,String> params = prepareEmailParams(bookingRecord.getBookUser(),bookingRecord,deleteBody);
+//           sendEmail.emailParams(params);
+            //too slow, thinking of using thread for sending mail and possibly using thread for creating ticket
+
+            ExecutorService emailExecutorService = Executors.newSingleThreadExecutor();
+            emailExecutorService.submit(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        sendEmailService.sendNewMail(params.get("To"), params.get("Subject"),params.get("Body"));
+                        sendEmailService.sendNewMail(bookingRecord.getBookUser(), params.get("Subject"),params.get("Body"));
+                    }
+                    catch (Exception e) {
+                        log.error("error in email thread: ", e);
+                    }
+
+                }
+            });
+            emailExecutorService.shutdown();
+
+
         }
 
         return Optional.of(new DeleteBookingResponse(bookingRecord.getBookingRecordId(),
@@ -493,14 +606,20 @@ public class BookingRecordController {
     private Optional<BookingRecord> existDeleteRecordInLab(String labname,DeleteBookingRequest deleteReq) {
 
         List<BookingRecord> records = bookingRecordService.findBookingRecordsByLabname(labname);
+        Optional<BookingRecord> resultById = records.stream().filter(r -> r.getBookingRecordId() == deleteReq.id).findFirst();
 
-        records.stream().forEach(dbRecord -> {log.info("dbRecord: {}", dbRecord.toString());});
         Optional<BookingRecord> result = records.stream().filter(r ->
                 (r.getTimeslot().getStart().equals(deleteReq.start)
                         && r.getTimeslot().getEnd().equals(deleteReq.end))).findFirst();
         if (result.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
+
+        if (resultById.isPresent()) {
+            log.info("Delete record id is {}", deleteReq.id);
+            log.info("Delete record details in string {}", deleteReq.toString());
+        }
+
         BookingRecord bookingRecord = result.get();
         if (!records.contains(bookingRecord)) {
             return Optional.empty();
@@ -509,7 +628,7 @@ public class BookingRecordController {
         return Optional.of(bookingRecord);
     }
 
-    private HashMap<String,String> prepareEmailParams(String username, BookingRecord record) {
+    private HashMap<String,String> prepareEmailParams(String username, BookingRecord record, String body) {
 
         HashMap<String,String> params = new HashMap<>();
 
@@ -520,20 +639,53 @@ public class BookingRecordController {
         String dateStart = record.getTimeslot().getStart().toString().split("T")[0];
 
 //        String to  = user.getEmail();
-        String to = "dimideka.dimi@gmail.com";
-
+//        String to = "dimideka.dimi@gmail.com";
+        String to = user.getEmail();
         params.put("To",to);
 
-        String subject = "Days and Times of reservation Lab changed!";
+        String subject = "Κρατήσεις Εργαστηρίων / Αιθουσών!";
         params.put("Subject",subject);
 
-        String body = "Dear user " + user.getFullname() + ",\n\n";
-        body = body + "Τα διατμηματικά εργαστήρια είναι ελεύθερα για κάποιες μέρες και ώρες μετά από ακυρώσεις.  \n";
-        body = body + "Συγκεκριμένα το εργαστήριο " + record.getLab() + " την ημερομηνία " + dateStart + " " + timeStart +"-" + timeEnd + "\n";
-        body = body + "Παρακαλώ ελέγξτε την περίπτωση αν επιθυμείτε να κάνετε κράτηση αυτές τις μέρες.  \n\n";
-        body = body + "Με εκτίμηση \n\n" + "Central of National Technical University of Athens";
+//        String body = "Dear user " + user.getFullname() + ",\n\n";
+//        body = body + "Τα διατμηματικά εργαστήρια είναι ελεύθερα για κάποιες μέρες και ώρες μετά από ακυρώσεις.  \n";
+//        body = body + "Συγκεκριμένα το εργαστήριο " + record.getLab() + " την ημερομηνία " + dateStart + " " + timeStart +"-" + timeEnd + "\n";
+//        body = body + "Παρακαλώ ελέγξτε την περίπτωση αν επιθυμείτε να κάνετε κράτηση αυτές τις μέρες.  \n\n";
+//        body = body + "Με εκτίμηση \n\n" + "Central of National Technical University of Athens";
 
         params.put("Body",body);
         return params;
     }
+
+    private void createTicketingRequest(String username, BookingRecord bookingRecord, long weeks) throws IOException {
+
+        String description = "";
+
+        if (weeks == 0)
+            description = "Έγινε νέα κράτηση για το  " + bookingRecord.getLab() + " από  " + bookingRecord.getTimeslot().getStart().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) +
+                    " μέχρι " + bookingRecord.getTimeslot().getEnd().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        else {
+            weeks++;
+            description = "Έγινε επαναλαμβανόμενη κράτηση για το  " + bookingRecord.getLab() + " από  " + bookingRecord.getTimeslot().getStart().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) +
+                    " μέχρι " + bookingRecord.getTimeslot().getEnd().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + " για " + weeks + " εβδομάδες";
+        }
+
+        Ticket ticket = Ticket.builder()
+//                .projectAlias("test")
+                .projectAlias("lbook")
+                .title("Νέα Κράτηση " + bookingRecord.getTitle())
+                .description(description)
+                .onBehalfOfUsername(username.split("@")[0])
+                .descriptionIsHtml(false)
+                .build();
+        if (bookingRecord.getBookUser().contains("admin"))
+            ticket.setOnBehalfOfUsername("dekadimi");
+
+        try {
+            ticketingService.sendTicket(ticket);
+        } catch (org.apache.hc.core5.http.ParseException e) {
+            log.error("Failed to send ticket", e);
+        }
+
+    }
+
 }

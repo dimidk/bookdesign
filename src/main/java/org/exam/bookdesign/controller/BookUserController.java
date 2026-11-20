@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.print.attribute.HashPrintJobAttributeSet;
+import javax.swing.text.html.Option;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +35,7 @@ import java.util.stream.Stream;
  * add από τον administrator.
  */
 
-
+//Change 2: not allow users that don't exist in db to use the app
 
 @RestController
 @RequiredArgsConstructor
@@ -45,10 +46,11 @@ public class BookUserController {
 
     record UserResponse(@JsonProperty("username") String username,
                         @JsonProperty("role") String role,
-                        @JsonProperty("password") String password) {}
+                        @JsonProperty("password") String password,
+                        @JsonProperty("userEmail") String email) {}
 
     @GetMapping("/user")
-    public UserResponse getUser(@AuthenticationPrincipal Jwt jwt) {
+    public Optional<UserResponse> getUser(@AuthenticationPrincipal Jwt jwt) {
 
         String userRole = "";
 
@@ -70,7 +72,7 @@ public class BookUserController {
 
         if (username == null ) {
             log.info("unathorized");
-            return new UserResponse(username, "unathorized", "unathorized");
+            return Optional.of(new UserResponse(username, "unathorized", "unathorized",""));
         }
 //
 //        Optional<BookUser> res = bookUserService.findBookUserByUsername(userDetails.getUsername());
@@ -88,6 +90,7 @@ public class BookUserController {
         //δεν επιστρέφει καλά τους ρόλους γιατί δεν είναι ακόμα σωστά configured αλλά γενικά βρίσκει το χρήστη κι είναι ok
         Optional<BookUser> res = bookUserService.findBookUserByUsername(username);
 
+
         if (res.isEmpty()) {
             List<String> roles = jwt.getClaimAsStringList("authorities");
 
@@ -99,15 +102,20 @@ public class BookUserController {
             user.setFullname(jwt.getClaimAsString("name"));
             user.setRole(Role.valueOf(userRole));
 
-            bookUserService.addUser(user);
+//Change 2: not allow users that don't exist in db to use the app
+//            bookUserService.addUser(user);
 
-            return  new UserResponse(username, userRole, jwt.getSubject());
+            return Optional.empty();
+
+//            return  new UserResponse(username, userRole, jwt.getSubject(),user.getEmail());
 
         }
         log.info("getUser: {}", res);
         log.info("authenticated");
 
         log.info("roles {} username {}",userRole,username);
-        return new UserResponse(username, userRole, jwt.getSubject());
+
+
+        return Optional.of(new UserResponse(username, userRole, jwt.getSubject(),res.get().getEmail()));
     }
 }
