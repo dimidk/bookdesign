@@ -44,28 +44,31 @@ public class LabController {
 //        return BookingManager.getInstance().getLabs();
 //    }
 
+// Change 1: 28.9.2026 Getting and number of seats for each lab
+
+    record LabRecordResp(
+            @JsonProperty("labname") String labname,
+            @JsonProperty("seats") int seats
+    ){}
     @GetMapping("/labs")
-    public List<String> getLabs() {
-        List<String> labnames = new ArrayList<>();
+//    public List<String> getLabs() {
+    public List<LabRecordResp> getLabs() {
 
-        HashMap<String,List<String>> mapRooms = new HashMap<>();
-
+        List<LabRecordResp> labinfo = new ArrayList<>();
         List<Lab> labs = labRepository.findAll();
-        //labRepository.findAll().forEach(lab -> {labs.put(lab.getLabname(),lab);});
+//        labs.forEach(lab -> labnames.add(lab.getLabname()));
 
-        List<String> listLabs = labs.stream().filter(l -> l.getType().equals("Εργαστήριο")).map(Lab::getLabname).collect(Collectors.toList());
-        List<String> listClassrooms = labs.stream().filter(l-> l.getType().equals("Αίθουσα")).map(Lab::getLabname).collect(Collectors.toList());
-        mapRooms.put("Εργαστήριο",listLabs);
-        mapRooms.put("Αίθουσα",listClassrooms);
-
-
-        labs.forEach(lab -> labnames.add(lab.getLabname()));
+        labs.forEach(lab -> {
+            LabRecordResp resp = new LabRecordResp(lab.getLabname(), lab.getSeats());
+            labinfo.add(resp);
+        });
 
         bookingService.loadFromDB(labs);
-        bookingService.loadFromDB(mapRooms);
 //must return labname and type to process with classrooms reservation
         //loadLabs(labnames);
-        return labnames;
+        //return labnames;
+        return labinfo;
+
     }
 
     record RoomTypeRecordResp(
