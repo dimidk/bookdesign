@@ -58,9 +58,14 @@ public class ApplicationConfig {
     public CorsFilter corsFilter() {
         final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         final CorsConfiguration config = new CorsConfiguration();
+//        CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        //config.setAllowedOrigins(Collections.singletonList("http://localhost:5173"));
-        config.setAllowedOrigins(Collections.singletonList("https://147.102.246.150:5173"));
+//        config.setAllowedOrigins(Collections.singletonList("https://localhost:5173"));
+//        config.setAllowedOrigins(Collections.singletonList("https://147.102.246.150:5173"));
+//        config.setAllowedOrigins(Collections.singletonList("https://147.102.246.46:5173"));
+        config.setAllowedOrigins(Collections.singletonList("https://bookinglabs.central.ntua.gr"));
+
+//        config.setAllowedOrigins(Collections.singletonList("https://booking.ntua.gr:5173"));
 
         config.setAllowedHeaders(Arrays.asList(
                 HttpHeaders.ORIGIN,
@@ -68,6 +73,8 @@ public class ApplicationConfig {
                 HttpHeaders.ACCEPT,
                 HttpHeaders.AUTHORIZATION
         ));
+//        config.addAllowedHeader("*");
+//        config.addAllowedMethod("*");
         config.setAllowedMethods(Arrays.asList(
                 "GET",
                 "POST",
@@ -76,6 +83,7 @@ public class ApplicationConfig {
                 "PATCH",
                 "OPTIONS"
         ));
+
         source.registerCorsConfiguration("/**", config);
         return new CorsFilter(source);
 

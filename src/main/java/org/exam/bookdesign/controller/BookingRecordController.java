@@ -661,14 +661,17 @@ public class BookingRecordController {
         String description = "";
 
         if (weeks == 0)
-            description = "User reported νέα κράτηση για το  " + bookingRecord.getLab() + " από  " + bookingRecord.getTimeslot().getStart().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) +
+            description = "Έγινε νέα κράτηση για το  " + bookingRecord.getLab() + " από  " + bookingRecord.getTimeslot().getStart().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) +
                     " μέχρι " + bookingRecord.getTimeslot().getEnd().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-        else
-            description = "User reported επαναλαμβανόμενη κράτηση για το  " + bookingRecord.getLab() + " από  " + bookingRecord.getTimeslot().getStart().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) +
-                    " μέχρι " + bookingRecord.getTimeslot().getEnd().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + " για " + weeks+1 + " εβδομάδες";
+        else {
+            weeks++;
+            description = "Έγινε επαναλαμβανόμενη κράτηση για το  " + bookingRecord.getLab() + " από  " + bookingRecord.getTimeslot().getStart().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) +
+                    " μέχρι " + bookingRecord.getTimeslot().getEnd().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + " για " + weeks + " εβδομάδες";
+        }
 
         Ticket ticket = Ticket.builder()
-                .projectAlias("test")
+//                .projectAlias("test")
+                .projectAlias("lbook")
                 .title("Νέα Κράτηση " + bookingRecord.getTitle())
                 .description(description)
                 .onBehalfOfUsername(username.split("@")[0])
