@@ -4,4 +4,5 @@ public enum State {
 
     Reserved,
     NotReserved,
+    Pending,
 }

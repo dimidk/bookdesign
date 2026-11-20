@@ -19,36 +19,6 @@ import org.springframework.http.HttpHeaders;
 @RequiredArgsConstructor
 public class ApplicationConfig {
 
-   // private final MyUserDetailsService myUserDetailsService;
-
-//    @Bean
-//    public PasswordEncoder passwordEncoder() {
-//        return NoOpPasswordEncoder.getInstance();
-//    }
-//
-//
-//    @Bean
-//    public AuthenticationProvider authenticationProvider() {
-//        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
-//        daoAuthenticationProvider.setUserDetailsService(myUserDetailsService);
-//        daoAuthenticationProvider.setPasswordEncoder(passwordEncoder());
-//
-//
-//        return daoAuthenticationProvider;
-//    }
-//
-//
-//
-//    @Bean
-//    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-//        return config.getAuthenticationManager();
-//    }
-//
-//    @Bean
-//    public SecurityContextRepository securityContextRepository() {
-//        return new HttpSessionSecurityContextRepository();
-//    }
-
     @Bean
     public AuditorAware<String> auditorAware() {
         return new ApplicationAuditorAware();
@@ -60,7 +30,7 @@ public class ApplicationConfig {
         final CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
         //config.setAllowedOrigins(Collections.singletonList("http://localhost:5173"));
-        config.setAllowedOrigins(Collections.singletonList("https://147.102.246.150:5173"));
+        config.setAllowedOrigins(Collections.singletonList("https://147.102.246.150:5174"));
 
         config.setAllowedHeaders(Arrays.asList(
                 HttpHeaders.ORIGIN,

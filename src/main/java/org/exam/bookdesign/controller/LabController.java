@@ -14,9 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -68,9 +66,40 @@ public class LabController {
 //must return labname and type to process with classrooms reservation
         //loadLabs(labnames);
         return labnames;
-
     }
 
+    record RoomTypeRecordResp(
+            @JsonProperty("id") int lab_id,
+            @JsonProperty("labname") String labname,
+            @JsonProperty("type") String type,
+            @JsonProperty("tm") String tm,
+            @JsonProperty("seats") String seats
+    ){}
+
+    @GetMapping(value = "/roomDescription/{roomType}/{selectedRoom}", produces = {"application/json"})
+    public Optional<RoomTypeRecordResp> describeRoom(@PathVariable String roomType, @PathVariable String selectedRoom) {
+
+        HashMap<String,List<Lab>> mapRooms = new HashMap<>();
+
+        List<Lab> rooms = labRepository.findAll();
+        //List<Lab> roomsType = rooms.stream().filter(l -> l.getType().equals(roomType)).toList();
+
+        List<Lab> selectedLab = rooms.stream().filter(lab -> lab.getType().equals(roomType)).filter(lab -> lab.getLabname().equals(selectedRoom)).toList();
+        log.info(selectedLab.toString());
+
+        if (selectedLab.isEmpty()) {
+            return Optional.empty();
+        }
+        RoomTypeRecordResp resp = new RoomTypeRecordResp(
+                selectedLab.get(0).getLab_id(),
+                selectedLab.get(0).getLabname(),
+                selectedLab.get(0).getType(),
+                selectedLab.get(0).getTm(),
+                selectedLab.get(0).getSeats()
+        );
+
+        return Optional.of(resp);
+    }
 
     record BookingRecordResp(
             @JsonProperty("id") int id,
