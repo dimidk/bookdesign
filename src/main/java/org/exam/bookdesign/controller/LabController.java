@@ -76,7 +76,7 @@ public class LabController {
             @JsonProperty("labname") String labname,
             @JsonProperty("type") String type,
             @JsonProperty("tm") String tm,
-            @JsonProperty("seats") String seats
+            @JsonProperty("seats") int seats
     ){}
 
     @GetMapping(value = "/roomDescription/{roomType}/{selectedRoom}", produces = {"application/json"})

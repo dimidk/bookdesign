@@ -30,8 +30,8 @@ public class ApplicationConfig {
         final CorsConfiguration config = new CorsConfiguration();
 //        CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-//        config.setAllowedOrigins(Collections.singletonList("https://localhost:5173"));
-        config.setAllowedOrigins(Collections.singletonList("https://147.102.246.150:5173"));
+        config.setAllowedOrigins(Collections.singletonList("https://localhost:5173"));
+//        config.setAllowedOrigins(Collections.singletonList("https://147.102.246.150:5173"));
 //        config.setAllowedOrigins(Collections.singletonList("https://147.102.246.46:5173"));
 //        config.setAllowedOrigins(Collections.singletonList("https://bookinglabs.central.ntua.gr"));
 
