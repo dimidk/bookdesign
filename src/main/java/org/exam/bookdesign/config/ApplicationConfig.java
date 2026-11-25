@@ -90,15 +90,20 @@ public class ApplicationConfig {
     }
 
 
+    //25/11/26 sending application's mail from
+
     @Bean
     public JavaMailSender getJavaMailSender() {
 
         JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
-        mailSender.setHost("smtp.gmail.com");
+//        mailSender.setHost("smtp.gmail.com");
+        mailSender.setHost("smtp.ntua.gr");
         mailSender.setPort(587);
 
-        mailSender.setUsername("dimideka.dimi@gmail.com");
-        mailSender.setPassword("dpik izbg jekt wjkb");
+//        mailSender.setUsername("dimideka.dimi@gmail.com");
+//        mailSender.setPassword("dpik izbg jekt wjkb");
+        mailSender.setUsername("testdimi_1@mail.ntua.gr");
+        mailSender.setPassword("Dekad!m!tr@34");
 
         Properties props = mailSender.getJavaMailProperties();
         props.put("mail.transport.protocol", "smtp");

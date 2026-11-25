@@ -202,8 +202,10 @@ public class BookingRecordController {
 
         Optional<BookUser> userOptional = bookUserService.findBookUserByUsername(bookingRecord.getBookUser());
         BookUser user = userOptional.get();
+        // 25/11/26 correct datetime format and sending message
         String body = "Dear user " + user.getFullname() + ",\n\n";
-        body = body + "Έγινε μια νέα κράτηση για εργαστήριο/αίθουσα \n";
+        body = body + "Έγινε μια νέα κράτηση για εργαστήριο/αίθουσα " + bookingRecord.getLab() + " από " + bookingRecord.getTimeslot().getStart().format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"));
+        body = body + " μέχρι " + bookingRecord.getTimeslot().getEnd().format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss")) +"\n\n" ;
 
         HashMap<String,String> params = prepareEmailParams(bookingRecord.getBookUser(),bookingRecord,body);
 
@@ -287,21 +289,26 @@ public class BookingRecordController {
 //        Optional<BookUser> userOptional = bookUserService.findBookUserByUsername(newRecord.getBookUser());
 //        BookUser user = userOptional.get();
         String body = "Dear user " + newRecord.getBookUser() + ",\n\n";
-        body = body + "Κάνατε μια επαναλαμβανόμενη κράτηση για εργαστήριο/αίθουσα για " + weeks + 1 + " εβδομάδες\n";
+//        body = body + "Κάνατε μια επαναλαμβανόμενη κράτηση για εργαστήριο/αίθουσα για " + weeks + 1 + " εβδομάδες\n";
+
+    // 25/11/26 correct datetime format and sending message
+        int repeatedTime = Integer.parseInt(Long.toString(weeks)) + 1;
+        body = body + "Έγινε μια επαναλαμβανόμενη κράτηση για εργαστήριο/αίθουσα " + newRecord.getLab() + " από " + newRecord.getTimeslot().getStart().format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"));
+        body = body + " μέχρι " + newRecord.getTimeslot().getEnd().format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss")) + " για " + repeatedTime + " εβδομάδες\n";
 
         HashMap<String,String> params = prepareEmailParams(newRecord.getBookUser(),newRecord,body);
 
-        ExecutorService emailExecutor = Executors.newSingleThreadExecutor();
-        emailExecutor.submit(new Runnable() {
-            @Override
-            public void run() {
-                sendEmailService.sendNewMail(params.get("To"), params.get("Subject"), "Κάνατε μια επαναλαμβανόμενη κράτηση για εργαστήριο/αίθουσα για " + weeks+1 + " εβδομάδες");
-                sendEmailService.sendNewMail("testdimi_1@mail.ntua.gr", params.get("Subject"), "Έγινε επαναλαμβανόμενη κράτηση για εργαστήριο/αίθουσα για εβδομάδες "+weeks+1);
-            }
-        });
-        emailExecutor.shutdown();
+//        ExecutorService emailExecutor = Executors.newSingleThreadExecutor();
+//        emailExecutor.submit(new Runnable() {
+//            @Override
+//            public void run() {
+//                sendEmailService.sendNewMail(params.get("To"), params.get("Subject"), "Κάνατε μια επαναλαμβανόμενη κράτηση για εργαστήριο/αίθουσα για " + weeks+1 + " εβδομάδες");
+//                sendEmailService.sendNewMail("testdimi_1@mail.ntua.gr", params.get("Subject"), "Έγινε επαναλαμβανόμενη κράτηση για εργαστήριο/αίθουσα για εβδομάδες "+weeks+1);
+//            }
+//        });
+//        emailExecutor.shutdown();
 
-//        threadService.myExecute(params,weeks);
+        threadService.myExecute(params,weeks);
 
         String username = jwt.getClaimAsString("preferred_username");
         createTicketingRequest(username,newRecord,weeks);
@@ -393,7 +400,8 @@ public class BookingRecordController {
                 public void run() {
                     try {
                             sendEmailService.sendNewMail(params.get("To"), params.get("Subject"),params.get("Body"));
-                            sendEmailService.sendNewMail(username, params.get("Subject"),params.get("Body"));
+//                            sendEmailService.sendNewMail(username, params.get("Subject"),params.get("Body"));
+                            sendEmailService.sendNewMail("testdimi_1@mail.ntua.gr", params.get("Subject"),params.get("Body"));
                     }
                     catch (Exception e) {
                         log.error("error in email thread: ", e);
@@ -476,7 +484,8 @@ public class BookingRecordController {
                 public void run() {
                     try {
                         sendEmailService.sendNewMail(params.get("To"), params.get("Subject"),params.get("Body"));
-                        sendEmailService.sendNewMail(bookingRecord.getBookUser(), params.get("Subject"),params.get("Body"));
+//                        sendEmailService.sendNewMail(bookingRecord.getBookUser(), params.get("Subject"),params.get("Body"));
+                        sendEmailService.sendNewMail("testdimi_1@mail.ntua.gr", params.get("Subject"),params.get("Body"));
                     }
                     catch (Exception e) {
                         log.error("error in email thread: ", e);
@@ -660,13 +669,15 @@ public class BookingRecordController {
 
         String description = "";
 
+        // 25/11/26 correct datetime format and sending message
+
         if (weeks == 0)
-            description = "Έγινε νέα κράτηση για το  " + bookingRecord.getLab() + " από  " + bookingRecord.getTimeslot().getStart().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) +
-                    " μέχρι " + bookingRecord.getTimeslot().getEnd().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            description = "Έγινε νέα κράτηση για το  " + bookingRecord.getLab() + " από  " + bookingRecord.getTimeslot().getStart().format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss")) +
+                    " μέχρι " + bookingRecord.getTimeslot().getEnd().format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"));
         else {
             weeks++;
-            description = "Έγινε επαναλαμβανόμενη κράτηση για το  " + bookingRecord.getLab() + " από  " + bookingRecord.getTimeslot().getStart().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) +
-                    " μέχρι " + bookingRecord.getTimeslot().getEnd().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + " για " + weeks + " εβδομάδες";
+            description = "Έγινε επαναλαμβανόμενη κράτηση για το  " + bookingRecord.getLab() + " από  " + bookingRecord.getTimeslot().getStart().format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss")) +
+                    " μέχρι " + bookingRecord.getTimeslot().getEnd().format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss")) + " για " + weeks + " εβδομάδες";
         }
 
         Ticket ticket = Ticket.builder()
